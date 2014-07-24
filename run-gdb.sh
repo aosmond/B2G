@@ -67,19 +67,21 @@ elif [ "$1" = "attach"  -a  -n "$2" ] ; then
    GDB_PORT=$((10000 + ($B2G_PID + $(id -u)) % 50000))
    # cmdline is null separated
    B2G_BIN=$($ADB shell cat /proc/$B2G_PID/cmdline | tr '\0' '\n' | head -1)
-else
+elif [ "$1" != "core" ] ; then
    B2G_PID=$(get_pid_by_name b2g)
 fi
 
-for p in $GDBSERVER_PID ; do
-   $ADB shell cat /proc/$p/cmdline | grep -q :$GDB_PORT && ( \
-      echo ..killing gdbserver pid $p
-      $ADB shell kill $p
-   ) || echo ..ignoring gdbserver pid $p
+if [ "$1" != "core" ] ; then
+   for p in $GDBSERVER_PID ; do
+      $ADB shell cat /proc/$p/cmdline | grep -q :$GDB_PORT && ( \
+         echo ..killing gdbserver pid $p
+         $ADB shell kill $p
+      ) || echo ..ignoring gdbserver pid $p
 
-done
+   done
 
-$ADB forward tcp:$GDB_PORT tcp:$GDB_PORT
+   $ADB forward tcp:$GDB_PORT tcp:$GDB_PORT
+fi
 
 if [ "$1" = "attach" ]; then
    if [ -z "$B2G_PID" ]; then
@@ -88,6 +90,9 @@ if [ "$1" = "attach" ]; then
    fi
 
    $ADB shell gdbserver :$GDB_PORT --attach $B2G_PID &
+elif [ "$1" == "core" ]; then
+   B2G_BIN=$2
+   CORE_FILE=$3
 elif [ "$1" != "vgdb" ]; then
    if [ -n "$1" ]; then
       B2G_BIN=$1
@@ -118,12 +123,13 @@ echo "handle SIGPIPE nostop" >> $GDBINIT
 echo "set solib-search-path $GECKO_OBJDIR/dist/bin:$SYMDIR/system/lib:$SYMDIR/system/lib/hw:$SYMDIR/system/lib/egl:$SYMDIR/system/bin:$GONK_OBJDIR/system/lib:$GONK_OBJDIR/system/lib/egl:$GONK_OBJDIR/system/lib/hw:$GONK_OBJDIR/system/vendor/lib:$GONK_OBJDIR/system/vendor/lib/hw:$GONK_OBJDIR/system/vendor/lib/egl" >> $GDBINIT
 if [ "$1" == "vgdb" ] ; then
   echo "target remote :$GDB_PORT" >> $GDBINIT
-else
+elif [ "$1" != "core" ]; then
   echo "target extended-remote :$GDB_PORT" >> $GDBINIT
 fi
 
 PROG=$GECKO_OBJDIR/dist/bin/$(basename $B2G_BIN)
 [ -f $PROG ] || PROG=${SYMDIR}${B2G_BIN}
+[ -f $PROG ] || PROG=${B2G_BIN}
 
 if [[ "$-" == *x* ]]; then
     # Since we got here, set -x was enabled near the top of the file. print
@@ -136,6 +142,9 @@ fi
 if [ "$SCRIPT_NAME" == "run-ddd.sh" ]; then
     echo "ddd --debugger \"$GDB -x $GDBINIT\" $PROG"
     ddd --debugger "$GDB -x $GDBINIT" $PROG
+elif [ "$1" == "core" ]; then
+    echo $GDB -x $GDBINIT $PROG $3
+    $GDB -x $GDBINIT $PROG $3
 else
     echo $GDB -x $GDBINIT $PROG
     $GDB -x $GDBINIT $PROG
