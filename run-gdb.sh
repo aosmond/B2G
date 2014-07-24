@@ -48,30 +48,30 @@ GDBINIT=/tmp/b2g.gdbinit.$(whoami).$$
 GONK_OBJDIR=out/target/product/$DEVICE
 SYMDIR=$GONK_OBJDIR/symbols
 
-GDBSERVER_PID=$(get_pid_by_name gdbserver)
-
-GDB_PORT=$((10000 + $(id -u) % 50000))
-if [ "$1" = "vgdb"  -a  -n "$2" ] ; then
-   GDB_PORT="$2"
-elif [ "$1" = "attach"  -a  -n "$2" ] ; then
-   B2G_PID=$2
-   if [ -z "$($ADB ls /proc/$B2G_PID)" ] ; then
-      ATTACH_TARGET=$B2G_PID
-      B2G_PID=$(get_pid_by_name "$B2G_PID")
-      if [ -z "$B2G_PID" ] ; then
-        echo Error: PID $ATTACH_TARGET is invalid
-        exit 1;
-      fi
-      echo "Found $ATTACH_TARGET PID: $B2G_PID"
-   fi
-   GDB_PORT=$((10000 + ($B2G_PID + $(id -u)) % 50000))
-   # cmdline is null separated
-   B2G_BIN=$($ADB shell cat /proc/$B2G_PID/cmdline | tr '\0' '\n' | head -1)
-elif [ "$1" != "core" ] ; then
-   B2G_PID=$(get_pid_by_name b2g)
-fi
-
 if [ "$1" != "core" ] ; then
+   GDBSERVER_PID=$(get_pid_by_name gdbserver)
+
+   GDB_PORT=$((10000 + $(id -u) % 50000))
+   if [ "$1" = "vgdb"  -a  -n "$2" ] ; then
+      GDB_PORT="$2"
+   elif [ "$1" = "attach"  -a  -n "$2" ] ; then
+      B2G_PID=$2
+      if [ -z "$($ADB ls /proc/$B2G_PID)" ] ; then
+         ATTACH_TARGET=$B2G_PID
+         B2G_PID=$(get_pid_by_name "$B2G_PID")
+         if [ -z "$B2G_PID" ] ; then
+           echo Error: PID $ATTACH_TARGET is invalid
+           exit 1;
+         fi
+         echo "Found $ATTACH_TARGET PID: $B2G_PID"
+      fi
+      GDB_PORT=$((10000 + ($B2G_PID + $(id -u)) % 50000))
+      # cmdline is null separated
+      B2G_BIN=$($ADB shell cat /proc/$B2G_PID/cmdline | tr '\0' '\n' | head -1)
+   else
+      B2G_PID=$(get_pid_by_name b2g)
+   fi
+
    for p in $GDBSERVER_PID ; do
       $ADB shell cat /proc/$p/cmdline | grep -q :$GDB_PORT && ( \
          echo ..killing gdbserver pid $p
@@ -143,7 +143,7 @@ if [ "$SCRIPT_NAME" == "run-ddd.sh" ]; then
     echo "ddd --debugger \"$GDB -x $GDBINIT\" $PROG"
     ddd --debugger "$GDB -x $GDBINIT" $PROG
 elif [ "$1" == "core" ]; then
-    echo $GDB -x $GDBINIT $PROG $CORE_FILE
+    echo $GDB -x $GDBINIT $PROG $CORE_FILE 
     $GDB -x $GDBINIT $PROG $CORE_FILE
 else
     echo $GDB -x $GDBINIT $PROG
