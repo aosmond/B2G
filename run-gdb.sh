@@ -143,8 +143,8 @@ if [ "$SCRIPT_NAME" == "run-ddd.sh" ]; then
     echo "ddd --debugger \"$GDB -x $GDBINIT\" $PROG"
     ddd --debugger "$GDB -x $GDBINIT" $PROG
 elif [ "$1" == "core" ]; then
-    echo $GDB -x $GDBINIT $PROG $3
-    $GDB -x $GDBINIT $PROG $3
+    echo $GDB -x $GDBINIT $PROG $CORE_FILE
+    $GDB -x $GDBINIT $PROG $CORE_FILE
 else
     echo $GDB -x $GDBINIT $PROG
     $GDB -x $GDBINIT $PROG
